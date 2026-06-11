@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+  group: release-${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -32,18 +32,23 @@ jobs:
       - name: Resolve release version
         id: release
         shell: bash
+        env:
+          WORKFLOW_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
 
           if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
             raw_version="${GITHUB_REF_NAME}"
           else
-            raw_version="${{ inputs.version }}"
+            raw_version="${WORKFLOW_VERSION}"
           fi
 
-          version="${raw_version#v}"
+          version="${raw_version}"
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            version="${raw_version#v}"
+          fi
           if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Version must look like 1.2.3 or v1.2.3"
+            echo "::error::Manual version must look like 1.2.3; tag releases must use v1.2.3"
             exit 1
           fi
 
@@ -61,7 +66,7 @@ jobs:
           previous_tag="$(
             git tag --merged HEAD --sort=-version:refname \
               | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
-              | grep -v "^${tag_name}$" \
+              | grep -Fvx "${tag_name}" \
               | head -n 1 || true
           )"
 
