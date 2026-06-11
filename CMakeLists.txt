@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.28)
-project(supermoan VERSION 1.0.0 LANGUAGES CXX OBJCXX)
+
+set(SUPERMOAN_VERSION "1.0.0" CACHE STRING "Supermoan release version")
+if(NOT SUPERMOAN_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
+  message(FATAL_ERROR "SUPERMOAN_VERSION must look like 1.2.3")
+endif()
+
+project(supermoan VERSION "${SUPERMOAN_VERSION}" LANGUAGES CXX OBJCXX)
 
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
