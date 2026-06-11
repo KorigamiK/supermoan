@@ -1,80 +1,107 @@
 # supermoan
 
-Dictation at the cursor for macOS. Press a hotkey, talk, press it again —
-the transcription is typed wherever your cursor is.
+Blazing fast native C++ natural dictation for macOS.
 
-A single C++26 binary using only Apple system frameworks:
+Press a hotkey to start recording. Press it again to stop. Supermoan
+transcribes your speech and types it into the app you are using.
 
-- **AudioToolbox** — microphone capture (16 kHz mono WAV)
-- **ApplicationServices** — keystroke synthesis, layout-independent Unicode
-- **Foundation** — upload to [Groq](https://console.groq.com)'s Whisper API
+- Native C++26 / Objective-C++
+- Tiny app bundle
+- No Electron
+- No third-party libraries
 
-## Dependencies
+## Why
 
-- macOS 14+ with Xcode Command Line Tools (`xcode-select --install`)
-- CMake ≥ 3.28 (`brew install cmake`)
-- A Groq API key (free tier available)
+Fancy dictation apps like [Wispr Flow](https://wisprflow.ai/), [Superwhisper](https://superwhisper.com/) and similar tools have their features behind paid tiers or hosted services.
 
-No third-party libraries.
+We moan:
 
-## Build & install
+- Free
+- Self-managed
+- BYOK style Groq API integration
+- No account system
+- No bundled subscription
+
+## Stack
+
+- AudioToolbox: microphone capture as 16 kHz mono WAV
+- ApplicationServices: layout-independent typing at the cursor
+- Foundation: upload to Groq Whisper
+
+## Requirements
+
+- macOS 14+
+- Xcode Command Line Tools: `xcode-select --install`
+- CMake 3.28+: `brew install cmake`
+- Groq API key
+
+## Build
 
 ```sh
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
-cmake --install build --prefix ~        # -> ~/Applications/Supermoan.app
+cmake --install build --prefix ~
+```
+
+Install target:
+
+```text
+~/Applications/Supermoan.app
 ```
 
 ## Setup
 
-1. Put your API key in the environment or in `~/.env`:
-   ```
-   GROQ_API_KEY=<your_key>
-   ```
-2. Bind a key to `open -gn ~/Applications/Supermoan.app`. With
-   [AeroSpace](https://github.com/nikitabobko/AeroSpace):
-   ```toml
-   [mode.main.binding]
-   cmd-shift-d = 'exec-and-forget open -gn ~/Applications/Supermoan.app'
-   ```
-   The `open` launch is required: it makes the app bundle the TCC
-   "responsible process", so the microphone prompt is shown for Supermoan.
-   Spawned directly by a hotkey daemon, macOS would kill the process
-   without a prompt (hotkey daemons declare no microphone usage).
-3. On first use, grant the two one-time permissions:
-   - **Microphone** — macOS prompts automatically
-   - **Accessibility** — System Settings → Privacy & Security → Accessibility
-     (a dialog points there; needed to type at the cursor)
+Put your API key in the environment or in `~/.env`:
 
-   Rebuilding changes the ad-hoc code signature, which invalidates both
-   grants — re-allow after `cmake --install`.
+```sh
+GROQ_API_KEY=<your_key>
+```
+
+Bind your hotkey to:
+
+```sh
+open -gn ~/Applications/Supermoan.app
+```
+
+Launching with `open` matters. It makes macOS attribute microphone access to
+the app bundle, so the normal permission prompt appears.
+
+On first use, grant:
+
+- Microphone
+- Accessibility, for typing at the cursor
+
+Reinstalling changes the ad-hoc signature, so macOS may ask for these again.
 
 ## Usage
 
-- First launch: starts recording (types `(recording...)` at the cursor)
-- Second launch: stops, transcribes, and types the result
-- `Supermoan.app/Contents/MacOS/Supermoan --log` — view the log
-  (`/tmp/supermoan.log`, auto-truncated at 512 KB)
-- `--no-type` — log keystrokes instead of posting them (debugging)
-
-Audio is captured from the **system default input device**
-(System Settings → Sound → Input).
-
-## Configuration
-
-`~/.config/supermoan/config`, `key : value` lines, `#` comments:
-
+```sh
+open -gn ~/Applications/Supermoan.app
+~/Applications/Supermoan.app/Contents/MacOS/Supermoan --log
+~/Applications/Supermoan.app/Contents/MacOS/Supermoan --no-type
 ```
-# seconds; recordings longer than this use whisper-large-v3 instead of -turbo
+
+- First launch records.
+- Second launch transcribes and types.
+- `--log` prints `/tmp/supermoan.log`.
+- `--no-type` logs keystrokes instead of posting them.
+
+## Config
+
+Optional config file:
+
+```text
+~/.config/supermoan/config
+```
+
+Format:
+
+```text
 long-recording-threshold : 1000
-
-# context words to bias Whisper's vocabulary
 transcription-prompt : ""
-
-# dB peak below which the recording counts as silent
 silence-threshold : -50
 ```
 
 ## License
 
-MIT
+MIT License. See [LICENSE](LICENSE).
