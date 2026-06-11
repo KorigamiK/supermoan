@@ -10,6 +10,12 @@ transcribes your speech and types it into the app you are using.
 - No Electron
 - No third-party libraries
 
+## Install
+
+```sh
+brew install --cask korigamik/homebrew-tap/supermoan
+```
+
 ## Why
 
 Fancy dictation apps like [Wispr Flow](https://wisprflow.ai/), [Superwhisper](https://superwhisper.com/) and similar tools have their features behind paid tiers or hosted services.
@@ -31,13 +37,13 @@ We moan:
 ## Requirements
 
 - macOS 14+
-- Xcode Command Line Tools: `xcode-select --install`
-- CMake 3.28+: `brew install cmake`
+- Homebrew
 - Groq API key
 
-## Build
+## Build From Source
 
 ```sh
+xcode-select --install
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 cmake --install build --prefix ~
@@ -60,7 +66,7 @@ GROQ_API_KEY=<your_key>
 Bind your hotkey to:
 
 ```sh
-open -gn ~/Applications/Supermoan.app
+open -gn /Applications/Supermoan.app
 ```
 
 Launching with `open` matters. It makes macOS attribute microphone access to
@@ -76,9 +82,9 @@ Reinstalling changes the ad-hoc signature, so macOS may ask for these again.
 ## Usage
 
 ```sh
-open -gn ~/Applications/Supermoan.app
-~/Applications/Supermoan.app/Contents/MacOS/Supermoan --log
-~/Applications/Supermoan.app/Contents/MacOS/Supermoan --no-type
+open -gn /Applications/Supermoan.app
+/Applications/Supermoan.app/Contents/MacOS/Supermoan --log
+/Applications/Supermoan.app/Contents/MacOS/Supermoan --no-type
 ```
 
 - First launch records.
