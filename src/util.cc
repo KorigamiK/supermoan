@@ -1,4 +1,4 @@
-#include "util.hpp"
+#include "util.hh"
 
 #include <charconv>
 #include <cstdio>

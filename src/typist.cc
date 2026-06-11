@@ -1,6 +1,6 @@
-#include "typist.hpp"
+#include "typist.hh"
 
-#include "util.hpp"
+#include "util.hh"
 
 #include <ApplicationServices/ApplicationServices.h>
 

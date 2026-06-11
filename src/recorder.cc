@@ -1,6 +1,6 @@
-#include "recorder.hpp"
+#include "recorder.hh"
 
-#include "util.hpp"
+#include "util.hh"
 
 #include <AudioToolbox/AudioToolbox.h>
 

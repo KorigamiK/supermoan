@@ -19,14 +19,17 @@ if(NOT APPLE)
 endif()
 
 add_executable(supermoan MACOSX_BUNDLE
-  src/main.cpp
-  src/util.cpp
-  src/recorder.cpp
-  src/typist.cpp
-  src/transcriber.mm
+  src/main.cc
+  src/util.cc
+  src/recorder.cc
+  src/typist.cc
+  src/transcriber.cc
 )
 
-set_source_files_properties(src/transcriber.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
+set_source_files_properties(src/transcriber.cc PROPERTIES
+  LANGUAGE OBJCXX
+  COMPILE_OPTIONS "-fobjc-arc"
+)
 
 # Error flow is std::expected / status codes; exceptions and RTTI are off.
 target_compile_options(supermoan PRIVATE -Wall -Wextra -fno-exceptions -fno-rtti)

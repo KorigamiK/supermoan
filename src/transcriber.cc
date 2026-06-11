@@ -2,7 +2,7 @@
 // NSJSONSerialization): the one Objective-C++ file, so the rest of the
 // project stays plain C++ with no third-party networking/JSON libraries.
 
-#include "transcriber.hpp"
+#include "transcriber.hh"
 
 #import <Foundation/Foundation.h>
 
