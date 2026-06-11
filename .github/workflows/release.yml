@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version, for example 1.0.0"
+        description: "Release version without v prefix, for example 1.0.0"
         required: true
         type: string
   push:
@@ -21,7 +21,7 @@ concurrency:
 jobs:
   release:
     name: Build and publish macOS release
-    runs-on: macos-14
+    runs-on: macos-26
 
     steps:
       - name: Check out source
