@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version without v prefix, for example 1.0.0"
+        description: "Release version, for example v1.0.0"
         required: true
         type: string
   push:
@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -43,15 +43,12 @@ jobs:
             raw_version="${WORKFLOW_VERSION}"
           fi
 
-          version="${raw_version}"
-          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
-            version="${raw_version#v}"
-          fi
-          if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Manual version must look like 1.2.3; tag releases must use v1.2.3"
+          if [[ ! "${raw_version}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must look like v1.2.3"
             exit 1
           fi
 
+          version="${raw_version#v}"
           tag_name="v${version}"
 
           if git rev-parse -q --verify "refs/tags/${tag_name}" >/dev/null; then
