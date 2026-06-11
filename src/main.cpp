@@ -119,8 +119,7 @@ int run_recorder() {
         return 1;
     }
 
-    std::this_thread::sleep_for(200ms); // let the hotkey's own keystrokes settle
-    typist::type(kRecordingMsg);
+    typist::type(kRecordingMsg); // typist waits for the hotkey chord release
 
     Recorder rec;
     if (!rec.start(kWavFile)) {
@@ -132,13 +131,16 @@ int run_recorder() {
 
     wait_for_stop_signal(server);
     const Recorder::Stats stats = rec.stop();
-    unlink(kSocketPath);
+    // Keep the socket listening until we're completely done: extra toggle
+    // presses while we transcribe/type connect here and are absorbed,
+    // instead of spawning a second recorder that types over our output.
 
     typist::backspace(kRecordingMsg.size());
 
     if (stats.peak_db < cfg.silence_threshold) {
         flash_message(kNoSoundMsg);
         unlink(kWavFile);
+        unlink(kSocketPath);
         return 0;
     }
 
@@ -160,6 +162,7 @@ int run_recorder() {
         flash_message(kFailedMsg);
     }
     unlink(kWavFile);
+    unlink(kSocketPath);
     return text ? 0 : 1;
 }
 
