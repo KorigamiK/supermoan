@@ -9,10 +9,10 @@
 // the daemon's (absent) microphone usage declaration applies and TCC kills
 // the process without a prompt.
 
-#include "recorder.hpp"
-#include "transcriber.hpp"
-#include "typist.hpp"
-#include "util.hpp"
+#include "recorder.hh"
+#include "transcriber.hh"
+#include "typist.hh"
+#include "util.hh"
 
 #include <chrono>
 #include <csignal>

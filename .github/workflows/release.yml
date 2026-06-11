@@ -1,0 +1,245 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, for example 1.0.0"
+        required: true
+        type: string
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish macOS release
+    runs-on: macos-14
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release version
+        id: release
+        shell: bash
+        env:
+          WORKFLOW_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            raw_version="${GITHUB_REF_NAME}"
+          else
+            raw_version="${WORKFLOW_VERSION}"
+          fi
+
+          version="${raw_version}"
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            version="${raw_version#v}"
+          fi
+          if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Manual version must look like 1.2.3; tag releases must use v1.2.3"
+            exit 1
+          fi
+
+          tag_name="v${version}"
+
+          if git rev-parse -q --verify "refs/tags/${tag_name}" >/dev/null; then
+            tag_sha="$(git rev-list -n 1 "${tag_name}")"
+            head_sha="$(git rev-parse HEAD)"
+            if [[ "${tag_sha}" != "${head_sha}" ]]; then
+              echo "::error::${tag_name} points to ${tag_sha}, but this workflow is building ${head_sha}"
+              exit 1
+            fi
+          fi
+
+          previous_tag="$(
+            git tag --merged HEAD --sort=-version:refname \
+              | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+              | grep -Fvx "${tag_name}" \
+              | head -n 1 || true
+          )"
+
+          {
+            echo "version=${version}"
+            echo "tag_name=${tag_name}"
+            echo "previous_tag=${previous_tag}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          cmake --version
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DSUPERMOAN_VERSION="${{ steps.release.outputs.version }}"
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Install app bundle
+        run: cmake --install build --prefix "${PWD}/dist/root"
+
+      - name: Package app
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag_name="${{ steps.release.outputs.tag_name }}"
+          app_path="dist/root/Applications/Supermoan.app"
+          zip_path="dist/Supermoan-${tag_name}-macos.zip"
+          checksum_path="${zip_path}.sha256"
+
+          test -d "${app_path}"
+          codesign --verify --deep --strict --verbose=2 "${app_path}"
+          plutil -p "${app_path}/Contents/Info.plist"
+          ditto -c -k --sequesterRsrc --keepParent "${app_path}" "${zip_path}"
+          shasum -a 256 "${zip_path}" | tee "${checksum_path}"
+
+          {
+            echo "zip_path=${zip_path}"
+            echo "checksum_path=${checksum_path}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Generate release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag_name="${{ steps.release.outputs.tag_name }}"
+          previous_tag="${{ steps.release.outputs.previous_tag }}"
+          notes_path="dist/release-notes.md"
+
+          {
+            echo "Native macOS build for Supermoan ${tag_name}."
+            echo
+            if [[ -n "${previous_tag}" ]]; then
+              echo "## Changes since ${previous_tag}"
+              echo
+              git log --pretty=format:'- %s (%h)' "${previous_tag}..HEAD"
+              echo
+              echo
+              echo "Full diff: https://github.com/${GITHUB_REPOSITORY}/compare/${previous_tag}...${tag_name}"
+            else
+              echo "## Initial release commits"
+              echo
+              git log --pretty=format:'- %s (%h)' HEAD
+              echo
+            fi
+            echo
+            echo "## Assets"
+            echo
+            echo "- Supermoan-${tag_name}-macos.zip"
+            echo "- Supermoan-${tag_name}-macos.zip.sha256"
+          } > "${notes_path}"
+
+          cat "${notes_path}"
+
+      - name: Publish GitHub release
+        uses: actions/github-script@v7
+        env:
+          TAG_NAME: ${{ steps.release.outputs.tag_name }}
+          ZIP_PATH: ${{ steps.package.outputs.zip_path }}
+          CHECKSUM_PATH: ${{ steps.package.outputs.checksum_path }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const { owner, repo } = context.repo;
+            const tagName = process.env.TAG_NAME;
+            const title = `Supermoan ${tagName}`;
+            const body = fs.readFileSync('dist/release-notes.md', 'utf8');
+
+            let release;
+            try {
+              const response = await github.rest.repos.getReleaseByTag({
+                owner,
+                repo,
+                tag: tagName,
+              });
+              release = response.data;
+
+              const updated = await github.rest.repos.updateRelease({
+                owner,
+                repo,
+                release_id: release.id,
+                name: title,
+                body,
+                draft: false,
+                prerelease: false,
+              });
+              release = updated.data;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+
+              const created = await github.rest.repos.createRelease({
+                owner,
+                repo,
+                tag_name: tagName,
+                target_commitish: context.sha,
+                name: title,
+                body,
+                draft: false,
+                prerelease: false,
+              });
+              release = created.data;
+            }
+
+            async function uploadAsset(filePath, label, contentType) {
+              const name = path.basename(filePath);
+              const size = fs.statSync(filePath).size;
+              const data = fs.readFileSync(filePath);
+
+              const assets = await github.paginate(github.rest.repos.listReleaseAssets, {
+                owner,
+                repo,
+                release_id: release.id,
+              });
+
+              for (const asset of assets) {
+                if (asset.name === name) {
+                  await github.rest.repos.deleteReleaseAsset({
+                    owner,
+                    repo,
+                    asset_id: asset.id,
+                  });
+                }
+              }
+
+              await github.rest.repos.uploadReleaseAsset({
+                owner,
+                repo,
+                release_id: release.id,
+                name,
+                label,
+                data,
+                headers: {
+                  'content-type': contentType,
+                  'content-length': size,
+                },
+              });
+            }
+
+            await uploadAsset(
+              process.env.ZIP_PATH,
+              `Supermoan ${tagName} macOS app`,
+              'application/zip',
+            );
+            await uploadAsset(
+              process.env.CHECKSUM_PATH,
+              'SHA256 checksum',
+              'text/plain',
+            );
