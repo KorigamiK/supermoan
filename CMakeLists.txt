@@ -5,6 +5,8 @@ if(NOT SUPERMOAN_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
   message(FATAL_ERROR "SUPERMOAN_VERSION must look like 1.2.3")
 endif()
 
+set(CMAKE_OSX_DEPLOYMENT_TARGET "14.0" CACHE STRING "Minimum macOS deployment target")
+
 project(supermoan VERSION "${SUPERMOAN_VERSION}" LANGUAGES CXX OBJCXX)
 
 set(CMAKE_CXX_STANDARD 26)

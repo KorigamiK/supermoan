@@ -1,6 +1,6 @@
 #include "util.hh"
 
-#include <charconv>
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -32,9 +32,10 @@ std::string unquote(std::string v) {
 
 // std::stod throws; exceptions are disabled project-wide
 void parse_double(const std::string& value, double& out, const std::string& key) {
-    double parsed{};
-    auto [ptr, ec] = std::from_chars(value.data(), value.data() + value.size(), parsed);
-    if (ec == std::errc{} && ptr == value.data() + value.size())
+    errno = 0;
+    char* end = nullptr;
+    double parsed = std::strtod(value.c_str(), &end);
+    if (end == value.c_str() + value.size() && errno != ERANGE)
         out = parsed;
     else
         log_line(std::format("config: ignoring invalid value for {}: [{}]", key, value));
