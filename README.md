@@ -31,7 +31,7 @@ We moan:
 ## Stack
 
 - AudioToolbox: microphone capture as 16 kHz mono WAV
-- ApplicationServices: layout-independent typing at the cursor
+- ApplicationServices: key event typing at the cursor
 - Foundation: upload to Groq Whisper
 
 ## Requirements

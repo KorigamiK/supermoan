@@ -13,8 +13,8 @@ bool trusted(bool prompt);
 void set_enabled(bool enabled);
 bool enabled();
 
-// Types arbitrary UTF-8 independent of keyboard layout
-// (CGEventKeyboardSetUnicodeString).
+// Types ASCII with physical key events for RDP compatibility, falling back to
+// CGEventKeyboardSetUnicodeString for non-ASCII text.
 void type(std::string_view utf8);
 void backspace(std::size_t count);
 

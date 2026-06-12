@@ -8,6 +8,7 @@
 #include <chrono>
 #include <format>
 #include <memory>
+#include <optional>
 #include <thread>
 #include <vector>
 
@@ -18,6 +19,9 @@ namespace {
 using namespace std::chrono_literals;
 
 constexpr CGKeyCode kVKDelete = 51;
+constexpr CGKeyCode kVKReturn = 36;
+constexpr CGKeyCode kVKTab = 48;
+constexpr CGKeyCode kVKSpace = 49;
 constexpr auto kKeyDelay = 8ms;
 // Max UTF-16 units CGEventKeyboardSetUnicodeString accepts per event
 constexpr CFIndex kChunk = 20;
@@ -30,11 +34,16 @@ struct CFDeleter {
 template <typename T>
 using cf_ptr = std::unique_ptr<std::remove_pointer_t<T>, CFDeleter>;
 
-void post_key_event(const cf_ptr<CGEventRef>& event) {
+struct KeyStroke {
+    CGKeyCode code;
+    CGEventFlags flags = 0;
+};
+
+void post_key_event(const cf_ptr<CGEventRef>& event, CGEventFlags flags = 0) {
     // Without explicit flags the event inherits the keyboard state captured
     // at creation -- physically held modifiers (the hotkey's cmd-shift) would
     // turn our keystrokes into app shortcuts.
-    CGEventSetFlags(event.get(), static_cast<CGEventFlags>(0));
+    CGEventSetFlags(event.get(), flags);
     CGEventPost(kCGSessionEventTap, event.get());
     std::this_thread::sleep_for(kKeyDelay);
 }
@@ -53,6 +62,128 @@ void wait_for_modifier_release() {
         }
         std::this_thread::sleep_for(10ms);
     }
+}
+
+std::optional<KeyStroke> ascii_keystroke(char c) {
+    constexpr CGEventFlags shift = kCGEventFlagMaskShift;
+    switch (c) {
+    case 'a': return KeyStroke{0};
+    case 's': return KeyStroke{1};
+    case 'd': return KeyStroke{2};
+    case 'f': return KeyStroke{3};
+    case 'h': return KeyStroke{4};
+    case 'g': return KeyStroke{5};
+    case 'z': return KeyStroke{6};
+    case 'x': return KeyStroke{7};
+    case 'c': return KeyStroke{8};
+    case 'v': return KeyStroke{9};
+    case 'b': return KeyStroke{11};
+    case 'q': return KeyStroke{12};
+    case 'w': return KeyStroke{13};
+    case 'e': return KeyStroke{14};
+    case 'r': return KeyStroke{15};
+    case 'y': return KeyStroke{16};
+    case 't': return KeyStroke{17};
+    case '1': return KeyStroke{18};
+    case '2': return KeyStroke{19};
+    case '3': return KeyStroke{20};
+    case '4': return KeyStroke{21};
+    case '6': return KeyStroke{22};
+    case '5': return KeyStroke{23};
+    case '=': return KeyStroke{24};
+    case '9': return KeyStroke{25};
+    case '7': return KeyStroke{26};
+    case '-': return KeyStroke{27};
+    case '8': return KeyStroke{28};
+    case '0': return KeyStroke{29};
+    case ']': return KeyStroke{30};
+    case 'o': return KeyStroke{31};
+    case 'u': return KeyStroke{32};
+    case '[': return KeyStroke{33};
+    case 'i': return KeyStroke{34};
+    case 'p': return KeyStroke{35};
+    case 'l': return KeyStroke{37};
+    case 'j': return KeyStroke{38};
+    case '\'': return KeyStroke{39};
+    case 'k': return KeyStroke{40};
+    case ';': return KeyStroke{41};
+    case '\\': return KeyStroke{42};
+    case ',': return KeyStroke{43};
+    case '/': return KeyStroke{44};
+    case 'n': return KeyStroke{45};
+    case 'm': return KeyStroke{46};
+    case '.': return KeyStroke{47};
+    case ' ': return KeyStroke{kVKSpace};
+    case '\t': return KeyStroke{kVKTab};
+    case '\n': return KeyStroke{kVKReturn};
+
+    case 'A': return KeyStroke{0, shift};
+    case 'S': return KeyStroke{1, shift};
+    case 'D': return KeyStroke{2, shift};
+    case 'F': return KeyStroke{3, shift};
+    case 'H': return KeyStroke{4, shift};
+    case 'G': return KeyStroke{5, shift};
+    case 'Z': return KeyStroke{6, shift};
+    case 'X': return KeyStroke{7, shift};
+    case 'C': return KeyStroke{8, shift};
+    case 'V': return KeyStroke{9, shift};
+    case 'B': return KeyStroke{11, shift};
+    case 'Q': return KeyStroke{12, shift};
+    case 'W': return KeyStroke{13, shift};
+    case 'E': return KeyStroke{14, shift};
+    case 'R': return KeyStroke{15, shift};
+    case 'Y': return KeyStroke{16, shift};
+    case 'T': return KeyStroke{17, shift};
+    case '!': return KeyStroke{18, shift};
+    case '@': return KeyStroke{19, shift};
+    case '#': return KeyStroke{20, shift};
+    case '$': return KeyStroke{21, shift};
+    case '^': return KeyStroke{22, shift};
+    case '%': return KeyStroke{23, shift};
+    case '+': return KeyStroke{24, shift};
+    case '(': return KeyStroke{25, shift};
+    case '&': return KeyStroke{26, shift};
+    case '_': return KeyStroke{27, shift};
+    case '*': return KeyStroke{28, shift};
+    case ')': return KeyStroke{29, shift};
+    case '}': return KeyStroke{30, shift};
+    case 'O': return KeyStroke{31, shift};
+    case 'U': return KeyStroke{32, shift};
+    case '{': return KeyStroke{33, shift};
+    case 'I': return KeyStroke{34, shift};
+    case 'P': return KeyStroke{35, shift};
+    case 'L': return KeyStroke{37, shift};
+    case 'J': return KeyStroke{38, shift};
+    case '"': return KeyStroke{39, shift};
+    case 'K': return KeyStroke{40, shift};
+    case ':': return KeyStroke{41, shift};
+    case '|': return KeyStroke{42, shift};
+    case '<': return KeyStroke{43, shift};
+    case '?': return KeyStroke{44, shift};
+    case 'N': return KeyStroke{45, shift};
+    case 'M': return KeyStroke{46, shift};
+    case '>': return KeyStroke{47, shift};
+    default: return std::nullopt;
+    }
+}
+
+bool type_ascii(std::string_view text) {
+    std::vector<KeyStroke> keys;
+    keys.reserve(text.size());
+    for (char c : text) {
+        if (auto key = ascii_keystroke(c))
+            keys.push_back(*key);
+        else
+            return false;
+    }
+
+    for (const KeyStroke& key : keys) {
+        for (bool down : {true, false}) {
+            cf_ptr<CGEventRef> event{CGEventCreateKeyboardEvent(nullptr, key.code, down)};
+            post_key_event(event, key.flags);
+        }
+    }
+    return true;
 }
 
 } // namespace
@@ -82,6 +213,10 @@ void type(std::string_view utf8) {
     }
 
     wait_for_modifier_release();
+
+    // RDP clients can ignore CGEventKeyboardSetUnicodeString. If that happens,
+    // a Unicode event with keycode 0 is delivered as the physical A key.
+    if (type_ascii(utf8)) return;
 
     cf_ptr<CFStringRef> str{CFStringCreateWithBytes(
         nullptr, reinterpret_cast<const UInt8*>(utf8.data()),
