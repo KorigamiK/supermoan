@@ -13,6 +13,8 @@ bool trusted(bool prompt);
 void set_enabled(bool enabled);
 bool enabled();
 
+void set_key_delay_ms(double delay_ms);
+
 // Types ASCII with physical key events for RDP compatibility, falling back to
 // CGEventKeyboardSetUnicodeString for non-ASCII text.
 void type(std::string_view utf8);

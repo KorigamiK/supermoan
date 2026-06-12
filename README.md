@@ -106,6 +106,7 @@ Format:
 long-recording-threshold : 1000
 transcription-prompt : ""
 silence-threshold : -50
+key-delay-ms : 1
 ```
 
 ## License

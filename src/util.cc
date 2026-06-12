@@ -65,6 +65,7 @@ Config load_config() {
         if (key == "long-recording-threshold") parse_double(value, cfg.long_recording_threshold, key);
         else if (key == "transcription-prompt") cfg.transcription_prompt = value;
         else if (key == "silence-threshold") parse_double(value, cfg.silence_threshold, key);
+        else if (key == "key-delay-ms") parse_double(value, cfg.key_delay_ms, key);
     }
     return cfg;
 }

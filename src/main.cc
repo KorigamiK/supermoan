@@ -31,12 +31,12 @@ namespace {
 using namespace supermoan;
 using namespace std::chrono_literals;
 
-constexpr std::string_view kRecordingMsg = "(recording...)";
-constexpr std::string_view kTranscribingMsg = "(transcribing...)";
-constexpr std::string_view kNoSoundMsg = "(no sound detected)";
-constexpr std::string_view kNoKeyMsg = "(no API key)";
-constexpr std::string_view kMicErrorMsg = "(mic error)";
-constexpr std::string_view kFailedMsg = "(transcription failed)";
+constexpr std::string_view kRecordingMsg = "recording...";
+constexpr std::string_view kTranscribingMsg = "transcribing...";
+constexpr std::string_view kNoSoundMsg = "no sound detected";
+constexpr std::string_view kNoKeyMsg = "no API key";
+constexpr std::string_view kMicErrorMsg = "mic error";
+constexpr std::string_view kFailedMsg = "transcription failed";
 
 class UniqueFd {
 public:
@@ -92,6 +92,7 @@ void wait_for_stop_signal(const UniqueFd& server) {
 int run_recorder() {
     trim_log();
     const Config cfg = load_config();
+    typist::set_key_delay_ms(cfg.key_delay_ms);
 
     unlink(kSocketPath); // stale leftover, nobody answered on it
     UniqueFd server{socket(AF_UNIX, SOCK_STREAM, 0)};

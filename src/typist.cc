@@ -21,13 +21,17 @@ using namespace std::chrono_literals;
 
 constexpr CGKeyCode kVKDelete = 51;
 constexpr CGKeyCode kVKReturn = 36;
+constexpr CGKeyCode kVKShift = 56;
 constexpr CGKeyCode kVKTab = 48;
 constexpr CGKeyCode kVKSpace = 49;
-constexpr auto kKeyDelay = 8ms;
+constexpr auto kModifierReleaseTimeout = 250ms;
+constexpr auto kShiftKeyDelay = 8ms;
+constexpr auto kUnicodeEventDelay = 2ms;
 // Max UTF-16 units CGEventKeyboardSetUnicodeString accepts per event
 constexpr CFIndex kChunk = 20;
 
 bool g_enabled = true;
+std::chrono::milliseconds g_key_delay = 1ms;
 
 struct CFDeleter {
     void operator()(CFTypeRef ref) const { CFRelease(ref); }
@@ -37,7 +41,7 @@ using cf_ptr = std::unique_ptr<std::remove_pointer_t<T>, CFDeleter>;
 
 struct KeyStroke {
     CGKeyCode code;
-    CGEventFlags flags = 0;
+    bool shift = false;
 };
 
 struct AsciiKey {
@@ -46,13 +50,20 @@ struct AsciiKey {
     CGKeyCode code;
 };
 
-void post_key_event(const cf_ptr<CGEventRef>& event, CGEventFlags flags = 0) {
+void post_key_event(const cf_ptr<CGEventRef>& event, CGEventFlags flags = 0,
+                    std::chrono::milliseconds delay = 0ms) {
     // Without explicit flags the event inherits the keyboard state captured
     // at creation -- physically held modifiers (the hotkey's cmd-shift) would
     // turn our keystrokes into app shortcuts.
     CGEventSetFlags(event.get(), flags);
-    CGEventPost(kCGSessionEventTap, event.get());
-    std::this_thread::sleep_for(kKeyDelay);
+    CGEventPost(kCGHIDEventTap, event.get());
+    if (delay > 0ms) std::this_thread::sleep_for(delay);
+}
+
+void post_keycode(CGKeyCode code, bool down, CGEventFlags flags = 0,
+                  std::chrono::milliseconds delay = 0ms) {
+    cf_ptr<CGEventRef> event{CGEventCreateKeyboardEvent(nullptr, code, down)};
+    post_key_event(event, flags, delay);
 }
 
 // Some apps consult the hardware modifier state directly, so zeroed event
@@ -60,11 +71,10 @@ void post_key_event(const cf_ptr<CGEventRef>& event, CGEventFlags flags = 0) {
 void wait_for_modifier_release() {
     constexpr CGEventFlags kModifiers = kCGEventFlagMaskCommand | kCGEventFlagMaskShift |
                                         kCGEventFlagMaskAlternate | kCGEventFlagMaskControl;
-    constexpr auto kTimeout = 3s;
-    const auto deadline = std::chrono::steady_clock::now() + kTimeout;
+    const auto deadline = std::chrono::steady_clock::now() + kModifierReleaseTimeout;
     while (CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState) & kModifiers) {
         if (std::chrono::steady_clock::now() > deadline) {
-            log_line("typist: modifiers still held after 3s, typing anyway");
+            log_line("typist: modifiers still held after 250ms, typing anyway");
             return;
         }
         std::this_thread::sleep_for(10ms);
@@ -93,11 +103,10 @@ constexpr auto make_ascii_keys() {
     };
 
     std::array<std::optional<KeyStroke>, 128> table{};
-    constexpr CGEventFlags shift = kCGEventFlagMaskShift;
     for (const AsciiKey& key : keys) {
         table[static_cast<unsigned char>(key.normal)] = KeyStroke{key.code};
         if (key.shifted != '\0')
-            table[static_cast<unsigned char>(key.shifted)] = KeyStroke{key.code, shift};
+            table[static_cast<unsigned char>(key.shifted)] = KeyStroke{key.code, true};
     }
     return table;
 }
@@ -119,9 +128,16 @@ bool type_ascii(std::string_view text) {
     }
 
     for (const KeyStroke& key : keys) {
-        for (bool down : {true, false}) {
-            cf_ptr<CGEventRef> event{CGEventCreateKeyboardEvent(nullptr, key.code, down)};
-            post_key_event(event, key.flags);
+        if (key.shift) {
+            // Shift key press so shifted punctuation survives remote input.
+            const auto delay = std::max(g_key_delay, std::chrono::milliseconds{kShiftKeyDelay});
+            post_keycode(kVKShift, true, kCGEventFlagMaskShift, delay);
+            post_keycode(key.code, true, kCGEventFlagMaskShift, delay);
+            post_keycode(key.code, false, kCGEventFlagMaskShift, delay);
+            post_keycode(kVKShift, false, 0, delay);
+        } else {
+            post_keycode(key.code, true, 0, g_key_delay);
+            post_keycode(key.code, false, 0, g_key_delay);
         }
     }
     return true;
@@ -145,6 +161,11 @@ void set_enabled(bool enabled) {
 
 bool enabled() {
     return g_enabled;
+}
+
+void set_key_delay_ms(double delay_ms) {
+    if (delay_ms < 0) delay_ms = 0;
+    g_key_delay = std::chrono::milliseconds{static_cast<int>(delay_ms)};
 }
 
 void type(std::string_view utf8) {
@@ -184,7 +205,7 @@ void type(std::string_view utf8) {
         for (bool down : {true, false}) {
             cf_ptr<CGEventRef> event{CGEventCreateKeyboardEvent(nullptr, 0, down)};
             CGEventKeyboardSetUnicodeString(event.get(), chunk, buf.data());
-            post_key_event(event);
+            post_key_event(event, 0, kUnicodeEventDelay);
         }
 
         off += chunk;
@@ -198,10 +219,8 @@ void backspace(std::size_t count) {
     }
     wait_for_modifier_release();
     for (std::size_t i = 0; i < count; i++) {
-        for (bool down : {true, false}) {
-            cf_ptr<CGEventRef> event{CGEventCreateKeyboardEvent(nullptr, kVKDelete, down)};
-            post_key_event(event);
-        }
+        post_keycode(kVKDelete, true, 0, g_key_delay);
+        post_keycode(kVKDelete, false, 0, g_key_delay);
     }
 }
 

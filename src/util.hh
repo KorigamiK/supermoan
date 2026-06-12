@@ -8,6 +8,7 @@ struct Config {
     double long_recording_threshold = 1000; // seconds; above -> large model
     std::string transcription_prompt;       // context words for Whisper
     double silence_threshold = -50;         // dB; peak below -> no sound
+    double key_delay_ms = 1;                // delay between physical key events
 };
 
 // ~/.config/supermoan/config, "key : value" lines, '#' comments
