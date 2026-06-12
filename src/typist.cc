@@ -5,6 +5,7 @@
 #include <ApplicationServices/ApplicationServices.h>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <format>
 #include <memory>
@@ -39,6 +40,12 @@ struct KeyStroke {
     CGEventFlags flags = 0;
 };
 
+struct AsciiKey {
+    char normal;
+    char shifted;
+    CGKeyCode code;
+};
+
 void post_key_event(const cf_ptr<CGEventRef>& event, CGEventFlags flags = 0) {
     // Without explicit flags the event inherits the keyboard state captured
     // at creation -- physically held modifiers (the hotkey's cmd-shift) would
@@ -64,107 +71,41 @@ void wait_for_modifier_release() {
     }
 }
 
-std::optional<KeyStroke> ascii_keystroke(char c) {
-    constexpr CGEventFlags shift = kCGEventFlagMaskShift;
-    switch (c) {
-    case 'a': return KeyStroke{0};
-    case 's': return KeyStroke{1};
-    case 'd': return KeyStroke{2};
-    case 'f': return KeyStroke{3};
-    case 'h': return KeyStroke{4};
-    case 'g': return KeyStroke{5};
-    case 'z': return KeyStroke{6};
-    case 'x': return KeyStroke{7};
-    case 'c': return KeyStroke{8};
-    case 'v': return KeyStroke{9};
-    case 'b': return KeyStroke{11};
-    case 'q': return KeyStroke{12};
-    case 'w': return KeyStroke{13};
-    case 'e': return KeyStroke{14};
-    case 'r': return KeyStroke{15};
-    case 'y': return KeyStroke{16};
-    case 't': return KeyStroke{17};
-    case '1': return KeyStroke{18};
-    case '2': return KeyStroke{19};
-    case '3': return KeyStroke{20};
-    case '4': return KeyStroke{21};
-    case '6': return KeyStroke{22};
-    case '5': return KeyStroke{23};
-    case '=': return KeyStroke{24};
-    case '9': return KeyStroke{25};
-    case '7': return KeyStroke{26};
-    case '-': return KeyStroke{27};
-    case '8': return KeyStroke{28};
-    case '0': return KeyStroke{29};
-    case ']': return KeyStroke{30};
-    case 'o': return KeyStroke{31};
-    case 'u': return KeyStroke{32};
-    case '[': return KeyStroke{33};
-    case 'i': return KeyStroke{34};
-    case 'p': return KeyStroke{35};
-    case 'l': return KeyStroke{37};
-    case 'j': return KeyStroke{38};
-    case '\'': return KeyStroke{39};
-    case 'k': return KeyStroke{40};
-    case ';': return KeyStroke{41};
-    case '\\': return KeyStroke{42};
-    case ',': return KeyStroke{43};
-    case '/': return KeyStroke{44};
-    case 'n': return KeyStroke{45};
-    case 'm': return KeyStroke{46};
-    case '.': return KeyStroke{47};
-    case ' ': return KeyStroke{kVKSpace};
-    case '\t': return KeyStroke{kVKTab};
-    case '\n': return KeyStroke{kVKReturn};
+constexpr auto make_ascii_keys() {
+    constexpr std::array keys{
+        AsciiKey{'a', 'A', 0},  AsciiKey{'s', 'S', 1},  AsciiKey{'d', 'D', 2},
+        AsciiKey{'f', 'F', 3},  AsciiKey{'h', 'H', 4},  AsciiKey{'g', 'G', 5},
+        AsciiKey{'z', 'Z', 6},  AsciiKey{'x', 'X', 7},  AsciiKey{'c', 'C', 8},
+        AsciiKey{'v', 'V', 9},  AsciiKey{'b', 'B', 11}, AsciiKey{'q', 'Q', 12},
+        AsciiKey{'w', 'W', 13}, AsciiKey{'e', 'E', 14}, AsciiKey{'r', 'R', 15},
+        AsciiKey{'y', 'Y', 16}, AsciiKey{'t', 'T', 17}, AsciiKey{'1', '!', 18},
+        AsciiKey{'2', '@', 19}, AsciiKey{'3', '#', 20}, AsciiKey{'4', '$', 21},
+        AsciiKey{'6', '^', 22}, AsciiKey{'5', '%', 23}, AsciiKey{'=', '+', 24},
+        AsciiKey{'9', '(', 25}, AsciiKey{'7', '&', 26}, AsciiKey{'-', '_', 27},
+        AsciiKey{'8', '*', 28}, AsciiKey{'0', ')', 29}, AsciiKey{']', '}', 30},
+        AsciiKey{'o', 'O', 31}, AsciiKey{'u', 'U', 32}, AsciiKey{'[', '{', 33},
+        AsciiKey{'i', 'I', 34}, AsciiKey{'p', 'P', 35}, AsciiKey{'l', 'L', 37},
+        AsciiKey{'j', 'J', 38}, AsciiKey{'\'', '"', 39}, AsciiKey{'k', 'K', 40},
+        AsciiKey{';', ':', 41}, AsciiKey{'\\', '|', 42}, AsciiKey{',', '<', 43},
+        AsciiKey{'/', '?', 44}, AsciiKey{'n', 'N', 45}, AsciiKey{'m', 'M', 46},
+        AsciiKey{'.', '>', 47}, AsciiKey{' ', '\0', kVKSpace},
+        AsciiKey{'\t', '\0', kVKTab}, AsciiKey{'\n', '\0', kVKReturn},
+    };
 
-    case 'A': return KeyStroke{0, shift};
-    case 'S': return KeyStroke{1, shift};
-    case 'D': return KeyStroke{2, shift};
-    case 'F': return KeyStroke{3, shift};
-    case 'H': return KeyStroke{4, shift};
-    case 'G': return KeyStroke{5, shift};
-    case 'Z': return KeyStroke{6, shift};
-    case 'X': return KeyStroke{7, shift};
-    case 'C': return KeyStroke{8, shift};
-    case 'V': return KeyStroke{9, shift};
-    case 'B': return KeyStroke{11, shift};
-    case 'Q': return KeyStroke{12, shift};
-    case 'W': return KeyStroke{13, shift};
-    case 'E': return KeyStroke{14, shift};
-    case 'R': return KeyStroke{15, shift};
-    case 'Y': return KeyStroke{16, shift};
-    case 'T': return KeyStroke{17, shift};
-    case '!': return KeyStroke{18, shift};
-    case '@': return KeyStroke{19, shift};
-    case '#': return KeyStroke{20, shift};
-    case '$': return KeyStroke{21, shift};
-    case '^': return KeyStroke{22, shift};
-    case '%': return KeyStroke{23, shift};
-    case '+': return KeyStroke{24, shift};
-    case '(': return KeyStroke{25, shift};
-    case '&': return KeyStroke{26, shift};
-    case '_': return KeyStroke{27, shift};
-    case '*': return KeyStroke{28, shift};
-    case ')': return KeyStroke{29, shift};
-    case '}': return KeyStroke{30, shift};
-    case 'O': return KeyStroke{31, shift};
-    case 'U': return KeyStroke{32, shift};
-    case '{': return KeyStroke{33, shift};
-    case 'I': return KeyStroke{34, shift};
-    case 'P': return KeyStroke{35, shift};
-    case 'L': return KeyStroke{37, shift};
-    case 'J': return KeyStroke{38, shift};
-    case '"': return KeyStroke{39, shift};
-    case 'K': return KeyStroke{40, shift};
-    case ':': return KeyStroke{41, shift};
-    case '|': return KeyStroke{42, shift};
-    case '<': return KeyStroke{43, shift};
-    case '?': return KeyStroke{44, shift};
-    case 'N': return KeyStroke{45, shift};
-    case 'M': return KeyStroke{46, shift};
-    case '>': return KeyStroke{47, shift};
-    default: return std::nullopt;
+    std::array<std::optional<KeyStroke>, 128> table{};
+    constexpr CGEventFlags shift = kCGEventFlagMaskShift;
+    for (const AsciiKey& key : keys) {
+        table[static_cast<unsigned char>(key.normal)] = KeyStroke{key.code};
+        if (key.shifted != '\0')
+            table[static_cast<unsigned char>(key.shifted)] = KeyStroke{key.code, shift};
     }
+    return table;
+}
+
+std::optional<KeyStroke> ascii_keystroke(char c) {
+    static constexpr auto table = make_ascii_keys();
+    const auto index = static_cast<unsigned char>(c);
+    return index < table.size() ? table[index] : std::nullopt;
 }
 
 bool type_ascii(std::string_view text) {
